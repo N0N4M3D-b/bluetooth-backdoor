@@ -9,7 +9,7 @@
 
 unsigned char c[MD5_DIGEST_LENGTH];
 
-char *CreateMD5Hash(char *path)
+void CheckMD5Hash(int client, char *path)
 {
 	FILE *file = fopen(path, "rb");
 
@@ -24,9 +24,24 @@ char *CreateMD5Hash(char *path)
 
 	fclose(file);
 
-	return c;	
-}
+	char originalHash[MD5_DIGEST_LENGTH];
+	recv(client, originalHash, MD5_DIGEST_LENGTH, 0);
+	
+	int flag = 1;
+	for (int i = 0; i < MD5_DIGEST_LENGTH; i++)	
+	{
+		if (c[i] != originalHash[i])
+		{
+			flag = 0;
+			break;
+		}
+	}
 
+	if (flag == 0)
+		send(client, "\x00", 1, 0);
+	else
+		send(client, "\x01", 1, 0);
+}
 
 char *GetPath(char *cmd)
 {
@@ -83,12 +98,12 @@ int RecvFile(char *cmd, int client)
 		printf("FileSize: %d\n", fileSize);
 
 		recv(client, fileData, fileSize, 0);
-		printf("Size: %s\n", (char *)&fileSize);
-		printf("Data: %s\n", fileData);
 		fwrite(fileData, 1, fileSize, recvFile);
 	}
 
 	fclose(recvFile);
+
+	CheckMD5Hash(client, path);
 
 	return 1;
 }
@@ -119,6 +134,8 @@ int SendFile(char *cmd, int client)
 	}
 
 	fclose(sendFile);
+
+	CheckMD5Hash(client, path);
 
 	return 1;
 }
