@@ -3,6 +3,7 @@ import os
 import time
 import argparse
 import struct
+import hashlib
 
 p32 = lambda x : struct.pack("<i", x)
 u32 = lambda x : struct.unpack("<i", x)
@@ -12,6 +13,17 @@ mac_addr = input('MAC ADDR : ')
 sock = BluetoothSocket(RFCOMM)
 sock.connect((mac_addr, 1))
 '''
+
+def md5(data):
+    enc = hashlib.md5()
+    enc.update(data)
+
+    return enc.digest()
+
+def cmd_chk(socket,cmd):
+    socket.send(cmd.encode())
+    return int(socket.recv(1))
+
 
 def chk_remote_path(socket,path):
     sock.send(p32(len(f'ls {path}')))
@@ -39,22 +51,28 @@ def send_file(socket,path,dst=None):
         
     dst_dir_path, _ = os.path.split(dst)
 
-    ### Send file ###
-    socket.send(f"backdoor_up {dst}".encode())
-
+    # HandShake
+    if cmd_chk(socket, f"backdoor_up {dst}") == 0:
+        return -3
     if chk_remote_path(socket,dst_dir_path)==False:
         return -2
 
+    #send Data
     with open(path, "rb") as f:
         while True:
-            data = f.read(10)
-
+            data = f.read(1)
             if len(data) == 0:
-                socket.send(p32(len(data)))
+                socket.send(b"\x00")
                 break
-
-            socket.send(p32(len(data)))
+            socket.send(b"\x01")
             socket.send(data)
+        #Send MD5
+        f.seek(0) 
+        socket.send(md5(f.read())) #16byte
+        if socket.recv(1) ==1:
+            return 1
+        else:
+            return -1
 
     
 def recv_file(socket,path,dst=None):
@@ -62,11 +80,11 @@ def recv_file(socket,path,dst=None):
         dst = input("Destination Path : ")
     if chk_local_path(dst)==False:
         #make directory
-        print("TBD")
+        os.makedirs(dst)
         
     ### Recv file ###
-    socket.send(f"backdoor_down {path}".encode())
-
+    if cmd_chk(socket, f"backdoor_down {path}") == 0:
+        return -3
     if chk_remote_path(socket, path)==False:
         return -2
 
@@ -76,9 +94,14 @@ def recv_file(socket,path,dst=None):
             
             if is_eof_flag == b'\x00':
                 break
-
-            recv_data = socket.recv(1)
-            f.write(recv_data)
+            elif is_eof_flag == b"\x01":
+                recv_data = socket.recv(1)
+                f.write(recv_data)
+        md5hash = socket.recv(16)
+        if md5hash == md5(recv_data):
+            return 1
+        else:
+            retrun -1
 
 
 def edit_file(socket,path):
