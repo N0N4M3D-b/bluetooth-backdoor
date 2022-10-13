@@ -80,7 +80,7 @@ def recv_file(socket,path,dst=None):
         dst = input("Destination Path : ")
     if chk_local_path(dst)==False:
         #make directory
-        os.makedirs(dst)
+        os.makedirs("/".join(os.path.split("/")[:-1]))
         
     ### Recv file ###
     if cmd_chk(socket, f"backdoor_down {path}") == 0:
