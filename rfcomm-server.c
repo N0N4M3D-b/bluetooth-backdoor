@@ -74,36 +74,34 @@ int RecvFile(char *cmd, int client)
 	return 1;
 }
 
-char * SendFile(char *cmd, int client)
+int SendFile(char *cmd, int client)
 {
+	if (!CheckDirPath(client))
+		return 0;
+
 	char *path = GetPath(cmd);
 	FILE *sendFile = fopen(path, "rb");
-	if (sendFile == NULL)
-		return nope;
 
-	int fileSize;
-	struct stat fileInfo;
-	stat(path, &fileInfo);
-	fileSize = fileInfo.st_size;
+	char fileData;
 
-	send(client, (char *)&fileSize, 4, 0);
-
-	char fileData[1024];
-	int sendSize = 1024;
-
-	for (int i = 0; i < (fileSize / 1024) + 1; i++)
+	while (1)
 	{
-		if (i == (fileSize / 1024))
-			sendSize = fileSize - ((fileSize / 1024) * 1024);
+		fileData = fgetc(sendFile);
 
-		memset(fileData, 0, sizeof(fileData));
-		fread(fileData, 1, sendSize, sendFile);
-		send(client, fileData, sendSize, 0);
+		if (feof(sendFile))
+		{
+			printf("EOF\n");
+			send(client, "\x00", 1, 0);
+			break;
+		}
+
+		send(client, "\x01", 1, 0);
+		send(client, &fileData, 1, 0);
 	}
 
 	fclose(sendFile);
 
-	return yeah;
+	return 1;
 }
 
 int main()

