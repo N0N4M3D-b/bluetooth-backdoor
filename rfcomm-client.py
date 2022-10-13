@@ -3,6 +3,7 @@ import os
 import time
 import argparse
 import struct
+import hashlib
 
 p32 = lambda x : struct.pack("<i", x)
 u32 = lambda x : struct.unpack("<i", x)
@@ -12,6 +13,17 @@ mac_addr = input('MAC ADDR : ')
 sock = BluetoothSocket(RFCOMM)
 sock.connect((mac_addr, 1))
 '''
+
+def md5(data):
+    enc = hashlib.md5()
+    enc.update(data)
+
+    return enc.hexdigest()
+
+def cmd_chk(socket,cmd):
+    socket.send(cmd.encode())
+    return socket.recv(1)
+
 
 def chk_remote_path(socket,path):
     sock.send(p32(len(f'ls {path}')))
@@ -40,7 +52,8 @@ def send_file(socket,path,dst=None):
     dst_dir_path, _ = os.path.split(dst)
 
     ### Send file ###
-    socket.send(f"backdoor_up {dst}".encode())
+    if cmd_chk(socket, f"backdoor_up {dst}") == 0:
+        return -3
 
     if chk_remote_path(socket,dst_dir_path)==False:
         return -2
