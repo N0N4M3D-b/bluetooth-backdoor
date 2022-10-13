@@ -20,6 +20,7 @@ def md5(data):
 
     return enc.digest()
 
+
 def cmd_chk(socket,cmd):
     socket.send(cmd.encode())
     return int(socket.recv(1))
@@ -40,8 +41,10 @@ def chk_remote_path(socket,path):
         sock.send(b'\x01')
         return True
 
+
 def chk_local_path(path):
     return os.path.isfile(path)
+
 
 def send_file(socket,path,dst=None):
     if chk_local_path(path)==False:
@@ -66,12 +69,15 @@ def send_file(socket,path,dst=None):
                 break
             socket.send(b"\x01")
             socket.send(data)
-        #Send MD5
-        f.seek(0) 
+
+    #Send MD5
+    with open (path, "rb") as f:
         socket.send(md5(f.read())) #16byte
-        if socket.recv(1) ==1:
+        if socket.recv(1) == b'\x01':
+            print('[+] Send File Success')
             return 1
         else:
+            print('[-] Send File Fail(MD5 Hash not match)')
             return -1
 
     
@@ -97,11 +103,23 @@ def recv_file(socket,path,dst=None):
             elif is_eof_flag == b"\x01":
                 recv_data = socket.recv(1)
                 f.write(recv_data)
+
+    #Send MD5
+    with open(dst, "rb") as f:
+        socket.send(md5(f.read()))
+        if socket.recv(1) == b'\x01':
+            print('[+] Recv File Success')
+            return 1
+        else:
+            print('[-] Recv File Fail(MD5 Hash not match)')
+            return -1
+        '''
         md5hash = socket.recv(16)
         if md5hash == md5(recv_data):
             return 1
         else:
             retrun -1
+        '''
 
 
 def edit_file(socket,path):
@@ -110,7 +128,6 @@ def edit_file(socket,path):
 
     send_file(socket,"."+"/"+path.split("/")[-1])
     os.remove("."+"/"+path.split("/")[-1])
-
 
 
 def shell(socket):
@@ -144,7 +161,6 @@ def shell(socket):
                 break
 
     sock.close()
-
 
 
 if __name__ == "__main__":

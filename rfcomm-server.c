@@ -83,22 +83,21 @@ int RecvFile(char *cmd, int client)
 	char *path = GetPath(cmd);
 	FILE *recvFile = fopen(path, "ab");
 
-	char fileData[1024] = { 0, };
-	int fileSize;
+	char fileData;
+	char isEOFFlag;
 
 	while (1)
 	{
-		memset(fileData, 0, sizeof(fileData));
-		fileSize = 0;
-		recv(client, (char *)&fileSize, 4, 0);
+		recv(client, &isEOFFlag, 1, 0);
 
-		if (fileSize == 0)
+		if (isEOFFlag == '\x00')
+		{
+			printf("EOF\n");
 			break;
+		}
 
-		printf("FileSize: %d\n", fileSize);
-
-		recv(client, fileData, fileSize, 0);
-		fwrite(fileData, 1, fileSize, recvFile);
+		recv(client, &fileData, 1, 0);
+		fwrite(&fileData, 1, 1, recvFile);	
 	}
 
 	fclose(recvFile);
