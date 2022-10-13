@@ -5,9 +5,28 @@
 #include <sys/stat.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
+#include <openssl/md5.h>
 
-char *nope = "\x00";
-char *yeah = "\x01";
+unsigned char c[MD5_DIGEST_LENGTH];
+
+char *CreateMD5Hash(char *path)
+{
+	FILE *file = fopen(path, "rb");
+
+	MD5_CTX mdContext;
+	int bytes;
+	unsigned char data[1024];
+
+	MD5_Init(&mdContext);
+	while ((bytes = fread(data, 1, 1024, file)) != 0)
+		MD5_Update(&mdContext, data, bytes);
+	MD5_Final(c, &mdContext);
+
+	fclose(file);
+
+	return c;	
+}
+
 
 char *GetPath(char *cmd)
 {
